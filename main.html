@@ -1,0 +1,141 @@
+<html>
+<head>
+    <meta name='description' content='Labeling tool'>
+    <meta name='author' content='Pardis Ranjbar Noiey (pardis.ranjbar@gmail.com)'>
+</head>
+<body>
+    <input type='file' onchange='openFile(event)'><br>
+    <div id='currentLabel'>Label:</div>
+
+    <input type='button'
+        value='1: Self-Disclosure'
+        onClick='markLabel(1)'><br>
+    <input type='button'
+        value='0: Non-SD'
+        onClick='markLabel(0)'><br>
+
+    <div id='currentIndex'>Entry number:</div>
+    <div id='currentLink'>Link:</div>
+    <input type='button' value='Next' onClick='loadNextPage()'>
+    <input type='button' value='Prev' onClick='loadPrevPage()'>
+    <input type='button' value='Next Unlabeled' onClick='loadNextUnlabeled()'><br>
+
+    Output Filename: <input id='outputFilename'></input>
+    <input type='button' value='Download Labels' onClick='saveWork()'><br>
+
+    <iframe id='iframe'
+        width='1000'
+        height='1000'
+        src='about:blank'>
+    </iframe>
+
+    <script>
+        // define global variables here
+        var sentences = [];
+        var labels = {};
+        var currentIndex = -1;
+
+        var openFile = function(event) {
+            var reader = new FileReader();
+            reader.onload = function(fileLoadedEvent){
+                var text = fileLoadedEvent.target.result;
+                textLines = text.split('\n');
+                sentences = []
+                labels = {}
+                for (i = 0; i < textLines.length; i++) {
+                    if (textLines[i].length == 0) {
+                        continue;
+                    }
+                    var lineParts = textLines[i].split('\t');
+                    if (lineParts.length == 2) {
+                        sentences.push(lineParts[1]);
+                        if (lineParts[0].length > 0) {
+                            labels[lineParts[1]] = lineParts[0];
+                        }
+                    } else if (lineParts.length == 1) {
+                        sentences.push(lineParts[0]);
+                    } else {
+                        alert('Error loading entry at line: ' + (i + 1));
+                    }
+                }
+                alert('Found ' + sentences.length + ' entries');
+                currentIndex = -1;
+                loadNextPage();
+            };
+            reader.readAsText(event.target.files[0]);
+        };
+
+        var printLabel = function() {
+            if (sentences[currentIndex] in labels) {
+                var label = labels[sentences[currentIndex]]
+                document.getElementById('currentLabel').innerText = 'Label: ' + label;
+            } else {
+                document.getElementById('currentLabel').innerText = 'Label: NA';
+            }
+        };
+
+        var loadNextPage = function() {
+            if (currentIndex < sentences.length - 1) {
+                currentIndex++;
+                document.getElementById('currentIndex').innerText = 'Entry number: ' + (currentIndex + 1);
+                printLabel();
+                document.getElementById('iframe').src = sentences[currentIndex];
+                document.getElementById('currentLink').innerText = 'Link: ' + sentences[currentIndex];
+            } else {
+                alert('Reached end of the list!');
+                currentIndex = sentences.length;
+            }
+        };
+
+        var loadNextUnlabeled = function() {
+            while(sentences[currentIndex] in labels) {
+                loadNextPage();
+            }
+        };
+
+        var loadPrevPage = function() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                document.getElementById('currentIndex').innerText = 'Entry number: ' + (currentIndex + 1);
+                printLabel();
+                document.getElementById('iframe').src = sentences[currentIndex];
+                document.getElementById('currentLink').innerText = 'Link: ' + sentences[currentIndex];
+            } else {
+                alert('Reached top of the list!');
+            }
+        };
+
+        var saveWork = function() {
+            var textToSave = '';
+            for (i = 0; i < sentences.length; i++) {
+                if (sentences[i] in labels) {
+                    textToSave += labels[sentences[i]] + '\t' + sentences[i]
+                } else {
+                    textToSave += '\t' + sentences[i]
+                }
+                if (i < sentences.length - 1) {
+                    textToSave += '\n'
+                }
+            }
+            var textToSaveAsBlob = new Blob([textToSave], {type:"text/plain"});
+            var textToSaveAsURL = window.URL.createObjectURL(textToSaveAsBlob);
+            var fileNameToSave = document.getElementById("outputFilename").value;
+
+            var downloadLink = document.createElement("a");
+            downloadLink.download = fileNameToSave;
+            downloadLink.innerHTML = "Download File";
+            downloadLink.href = textToSaveAsURL;
+            downloadLink.onclick = destroyClickedElement;
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+        };
+        function destroyClickedElement(event) { document.body.removeChild(event.target); };
+
+        var markLabel = function(label) {
+            labels[sentences[currentIndex]] = label;
+            document.getElementById('currentLabel').innerText = 'Label: ' + label;
+        };
+    </script>
+</body>
+</html>
